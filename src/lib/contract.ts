@@ -25,6 +25,8 @@ export const escrowAbi = parseAbi([
   "function refundMilestone(uint256 gigId, uint256 index)",
   "function claimAfterTimeout(uint256 gigId, uint256 index)",
   "function raiseDispute(uint256 gigId, uint256 index)",
+  "function resolveDispute(uint256 gigId, uint256 index, bool payWorker)",
+  "function arbiter() view returns (address)",
   "event GigCreated(uint256 indexed gigId, address indexed client, uint256 totalAmount, uint64 deadline, bytes32 metadataHash, uint256 milestoneCount)",
   "event Applied(uint256 indexed gigId, address indexed applicant)",
 ]);
