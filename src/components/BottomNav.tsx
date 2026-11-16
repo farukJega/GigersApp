@@ -5,18 +5,19 @@ import { usePathname } from "next/navigation";
 import { LayoutGrid, Compass, Plus } from "lucide-react";
 
 const items = [
-  { href: "/", label: "Home", Icon: LayoutGrid },
+  { href: "/app", label: "Home", Icon: LayoutGrid },
   { href: "/explore", label: "Explore", Icon: Compass },
   { href: "/create", label: "Post Gig", Icon: Plus },
 ];
 
 export function BottomNav() {
   const path = usePathname();
+  if (path === "/") return null;
   return (
     <nav className="fixed inset-x-0 bottom-0 z-50 border-t border-line bg-bg/90 backdrop-blur">
       <div className="mx-auto grid max-w-5xl grid-cols-3 px-2">
         {items.map(({ href, label, Icon }) => {
-          const active = href === "/" ? path === "/" : path.startsWith(href);
+          const active = path.startsWith(href);
           return (
             <Link
               key={href}

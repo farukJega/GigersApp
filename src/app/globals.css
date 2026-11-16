@@ -49,3 +49,6 @@ body {
     var(--bg);
   background-attachment: fixed;
 }
+
+html { color-scheme: light; }
+html.dark { color-scheme: dark; }
