@@ -7,8 +7,9 @@ import { ESCROW_ADDRESS, escrowAbi, USDC_DECIMALS } from "@/lib/contract";
 import { arcTestnet } from "@/lib/arc";
 import { categories } from "@/lib/categories";
 import type { GigMetadata } from "@/lib/metadata";
+import { useLang } from "./LanguageProvider";
 
-const statusNames = ["Open", "In progress", "Completed", "Cancelled"];
+const statusKeys = ["open", "inprog", "done", "cancelled"];
 const statusStyle = [
   "bg-brand/15 text-brand",
   "bg-warn/15 text-warn",
@@ -21,6 +22,7 @@ type GigTuple = readonly [string, string, string, bigint, bigint, bigint, bigint
 const short = (a: string) => `${a.slice(0, 6)}...${a.slice(-4)}`;
 
 export function GigList({ limit = 10 }: { limit?: number }) {
+  const { t } = useLang();
   const { data: count, isLoading: loadingCount } = useReadContract({
     address: ESCROW_ADDRESS,
     abi: escrowAbi,
@@ -65,8 +67,8 @@ export function GigList({ limit = 10 }: { limit?: number }) {
   if (total === 0) {
     return (
       <div className="rounded-2xl border border-dashed border-line bg-card p-8 text-center">
-        <p className="font-semibold">No gigs yet</p>
-        <p className="mt-1 text-sm text-muted">Be the first to post a funded gig on Arc Testnet.</p>
+        <p className="font-semibold">{t("no_gigs")}</p>
+        <p className="mt-1 text-sm text-muted">{t("no_gigs_d")}</p>
       </div>
     );
   }
@@ -79,18 +81,19 @@ export function GigList({ limit = 10 }: { limit?: number }) {
         const g = r.result as unknown as GigTuple;
         const status = Number(g[7]);
         const m = meta?.[g[2].toLowerCase()];
-        const catName = m ? categories.find((c) => c.slug === m.category)?.name : undefined;
+        const ci = m ? categories.findIndex((c) => c.slug === m.category) : -1;
+        const catName = ci >= 0 ? t(`c${ci}`, categories[ci].name) : undefined;
         return (
           <div key={id} className="rounded-2xl border border-line bg-card p-4">
             <div className="flex items-start justify-between gap-3">
               <div className="min-w-0">
                 <p className="truncate font-bold">{m?.title ?? `Gig #${id}`}</p>
                 <p className="mt-0.5 text-xs text-muted">
-                  {catName ? `${catName} / ${m?.subcategory}` : "Details unavailable"}
+                  {catName ? `${catName} / ${m?.subcategory}` : t("unavail")}
                 </p>
               </div>
               <span className={`shrink-0 rounded-full px-2.5 py-1 text-xs font-semibold ${statusStyle[status] ?? statusStyle[3]}`}>
-                {statusNames[status] ?? "Unknown"}
+                {t(statusKeys[status] ?? "open")}
               </span>
             </div>
 
@@ -112,10 +115,10 @@ export function GigList({ limit = 10 }: { limit?: number }) {
               <p className="text-2xl font-extrabold text-brand">
                 {formatUnits(g[4], USDC_DECIMALS)} <span className="text-sm font-semibold text-muted">USDC</span>
               </p>
-              <div className="text-right text-xs text-muted">
-                <p>Client {short(g[0])}</p>
-                <p>{String(g[5])} applicants</p>
-                <p>Due {new Date(Number(g[3]) * 1000).toLocaleDateString()}</p>
+              <div className="text-end text-xs text-muted">
+                <p>{t("client")} {short(g[0])}</p>
+                <p>{String(g[5])} {t("applicants")}</p>
+                <p>{t("due")} {new Date(Number(g[3]) * 1000).toLocaleDateString()}</p>
               </div>
             </div>
           </div>

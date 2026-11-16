@@ -2,17 +2,19 @@
 
 import { useAccount, useConnect, useDisconnect, useSwitchChain } from "wagmi";
 import { arcTestnet } from "@/lib/arc";
+import { useLang } from "./LanguageProvider";
 
 const short = (a: string) => `${a.slice(0, 6)}...${a.slice(-4)}`;
 
 export function ConnectButton() {
+  const { t } = useLang();
   const { address, isConnected, chainId } = useAccount();
   const { connect, connectors, isPending, error } = useConnect();
   const { disconnect } = useDisconnect();
   const { switchChain, isPending: switching } = useSwitchChain();
 
   const base =
-    "rounded-xl px-4 py-2 text-sm font-semibold transition active:scale-95";
+    "whitespace-nowrap rounded-xl px-3 py-2 text-xs font-semibold transition active:scale-95 sm:px-4 sm:text-sm";
 
   if (!isConnected) {
     return (
@@ -22,13 +24,9 @@ export function ConnectButton() {
           disabled={isPending}
           onClick={() => connect({ connector: connectors[0] })}
         >
-          {isPending ? "Connecting..." : "Connect Wallet"}
+          {isPending ? t("connecting") : t("connect")}
         </button>
-        {error && (
-          <p className="max-w-[220px] text-right text-xs text-red-400">
-            Open this page inside your wallet app browser (MetaMask).
-          </p>
-        )}
+        {error && <p className="max-w-[220px] text-end text-xs text-red-400">{t("hint")}</p>}
       </div>
     );
   }
@@ -40,7 +38,7 @@ export function ConnectButton() {
         disabled={switching}
         onClick={() => switchChain({ chainId: arcTestnet.id })}
       >
-        {switching ? "Switching..." : "Switch to Arc Testnet"}
+        {switching ? "..." : t("switch_net")}
       </button>
     );
   }
@@ -49,7 +47,7 @@ export function ConnectButton() {
     <button
       className={`${base} border border-line bg-card text-fg`}
       onClick={() => disconnect()}
-      title="Click to disconnect"
+      title="Disconnect"
     >
       {short(address!)}
     </button>

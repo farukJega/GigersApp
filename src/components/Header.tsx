@@ -1,5 +1,6 @@
 import { Logo } from "./Logo";
 import { ThemeToggle } from "./ThemeToggle";
+import { LanguageSwitcher } from "./LanguageSwitcher";
 import { ConnectButton } from "./ConnectButton";
 
 export function Header() {
@@ -9,6 +10,7 @@ export function Header() {
         <Logo />
         <div className="flex items-center gap-2">
           <ThemeToggle />
+          <LanguageSwitcher />
           <ConnectButton />
         </div>
       </div>
