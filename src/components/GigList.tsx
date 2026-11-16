@@ -1,9 +1,12 @@
 "use client";
 
+import { useQuery } from "@tanstack/react-query";
 import { useReadContract, useReadContracts } from "wagmi";
 import { formatUnits } from "viem";
 import { ESCROW_ADDRESS, escrowAbi, USDC_DECIMALS } from "@/lib/contract";
 import { arcTestnet } from "@/lib/arc";
+import { categories } from "@/lib/categories";
+import type { GigMetadata } from "@/lib/metadata";
 
 const statusNames = ["Open", "In progress", "Completed", "Cancelled"];
 const statusStyle = [
@@ -39,6 +42,22 @@ export function GigList({ limit = 10 }: { limit?: number }) {
     query: { enabled: ids.length > 0 },
   });
 
+  const hashes = ids
+    .map((_, i) => {
+      const r = data?.[i];
+      return r && r.status === "success" ? (r.result as unknown as GigTuple)[2] : null;
+    })
+    .filter((h): h is string => !!h);
+
+  const { data: meta } = useQuery({
+    queryKey: ["gig-meta", hashes.join(",")],
+    enabled: hashes.length > 0,
+    queryFn: async () => {
+      const res = await fetch(`/api/metadata?hashes=${hashes.join(",")}`);
+      return (await res.json()) as Record<string, GigMetadata>;
+    },
+  });
+
   if (loadingCount || (ids.length > 0 && isLoading)) {
     return <div className="h-24 animate-pulse rounded-2xl border border-line bg-card" />;
   }
@@ -59,22 +78,42 @@ export function GigList({ limit = 10 }: { limit?: number }) {
         if (!r || r.status !== "success") return null;
         const g = r.result as unknown as GigTuple;
         const status = Number(g[7]);
+        const m = meta?.[g[2].toLowerCase()];
+        const catName = m ? categories.find((c) => c.slug === m.category)?.name : undefined;
         return (
           <div key={id} className="rounded-2xl border border-line bg-card p-4">
             <div className="flex items-start justify-between gap-3">
-              <div>
-                <p className="font-bold">Gig #{id}</p>
-                <p className="mt-0.5 text-xs text-muted">Client {short(g[0])}</p>
+              <div className="min-w-0">
+                <p className="truncate font-bold">{m?.title ?? `Gig #${id}`}</p>
+                <p className="mt-0.5 text-xs text-muted">
+                  {catName ? `${catName} / ${m?.subcategory}` : "Details unavailable"}
+                </p>
               </div>
-              <span className={`rounded-full px-2.5 py-1 text-xs font-semibold ${statusStyle[status] ?? statusStyle[3]}`}>
+              <span className={`shrink-0 rounded-full px-2.5 py-1 text-xs font-semibold ${statusStyle[status] ?? statusStyle[3]}`}>
                 {statusNames[status] ?? "Unknown"}
               </span>
             </div>
+
+            {m && (
+              <>
+                <p className="mt-2 line-clamp-2 text-sm text-muted">{m.description}</p>
+                <div className="mt-2 flex flex-wrap gap-1.5">
+                  {m.quick && (
+                    <span className="rounded-full bg-brand/15 px-2.5 py-0.5 text-xs font-semibold text-brand">Quick Gig</span>
+                  )}
+                  {m.skills.slice(0, 4).map((s) => (
+                    <span key={s} className="rounded-full border border-line bg-card2 px-2.5 py-0.5 text-xs text-muted">{s}</span>
+                  ))}
+                </div>
+              </>
+            )}
+
             <div className="mt-3 flex items-end justify-between">
               <p className="text-2xl font-extrabold text-brand">
                 {formatUnits(g[4], USDC_DECIMALS)} <span className="text-sm font-semibold text-muted">USDC</span>
               </p>
               <div className="text-right text-xs text-muted">
+                <p>Client {short(g[0])}</p>
                 <p>{String(g[5])} applicants</p>
                 <p>Due {new Date(Number(g[3]) * 1000).toLocaleDateString()}</p>
               </div>
