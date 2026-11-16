@@ -8,6 +8,7 @@ import { ESCROW_ADDRESS, USDC_DECIMALS, escrowAbi } from "@/lib/contract";
 import { arcTestnet } from "@/lib/arc";
 import type { WorkSubmission } from "@/lib/work";
 import { useLang } from "./LanguageProvider";
+import { FileAttach, WorkFiles } from "./FileAttach";
 
 type Addr = `0x${string}`;
 type MilestoneT = { amount: bigint; workHash: string; submittedAt: bigint; status: number };
@@ -52,6 +53,7 @@ export function MilestoneList({
   const [open, setOpen] = useState<number | null>(null);
   const [note, setNote] = useState("");
   const [links, setLinks] = useState("");
+  const [files, setFiles] = useState<string[]>([]);
 
   const { data: arbiter } = useReadContract({
     address: ESCROW_ADDRESS,
@@ -101,7 +103,7 @@ export function MilestoneList({
       const res = await fetch("/api/work", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ gigId: String(id), index, note, links: links.split("\n") }),
+        body: JSON.stringify({ gigId: String(id), index, note, links: links.split("\n"), files }),
       });
       const j = await res.json();
       if (!res.ok) throw new Error(j.error || "Could not save your work.");
@@ -117,6 +119,7 @@ export function MilestoneList({
       setOpen(null);
       setNote("");
       setLinks("");
+      setFiles([]);
       onChanged();
     } catch (e) {
       setError(friendly(e));
@@ -165,6 +168,7 @@ export function MilestoneList({
               <div className="rounded-lg bg-card2 p-3">
                 <p className="mb-1 text-xs font-bold text-muted">{t("w_work")}</p>
                 {w.note && <p className="whitespace-pre-wrap text-sm">{w.note}</p>}
+                <WorkFiles ids={w.files ?? []} />
                 {(w.links ?? [])
                   .filter((l) => /^https?:\/\//i.test(l))
                   .map((l) => (
@@ -187,6 +191,7 @@ export function MilestoneList({
                   <p className="font-bold">{t("w_sub_title")}</p>
                   <textarea className={field} rows={3} maxLength={2000} value={note} onChange={(e) => setNote(e.target.value)} placeholder={t("w_note_ph")} />
                   <textarea className={field} rows={2} value={links} onChange={(e) => setLinks(e.target.value)} placeholder={t("w_links_ph")} />
+                  <FileAttach files={files} onChange={setFiles} />
                   <p className="text-xs text-muted">{t("w_public")}</p>
                   <div className="grid grid-cols-2 gap-2">
                     <button className={`${btn} border border-line bg-card`} disabled={!!busy} onClick={() => setOpen(null)}>

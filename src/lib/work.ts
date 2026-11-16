@@ -4,6 +4,7 @@ export type WorkSubmission = {
   index: number;
   note: string;
   links: string[];
+  files?: string[];
 };
 
 export function normalizeWork(
@@ -33,9 +34,14 @@ export function normalizeWork(
   });
   if (bad) return { ok: false, error: "Each link must be a valid http(s) URL." };
 
-  if (note.length < 1 && links.length < 1)
-    return { ok: false, error: "Add a note or at least one link to your work." };
+  const files = (Array.isArray(input.files) ? input.files : [])
+    .map(str)
+    .filter((f) => /^0x[0-9a-fA-F]{64}$/.test(f));
+  if (files.length > 5) return { ok: false, error: "You can attach up to 5 images." };
 
-  const data: WorkSubmission = { v: 1, gigId, index, note, links };
+  if (note.length < 1 && links.length < 1 && files.length < 1)
+    return { ok: false, error: "Add a note, a link or an image to your work." };
+
+  const data: WorkSubmission = { v: 1, gigId, index, note, links, files };
   return { ok: true, data, json: JSON.stringify(data) };
 }

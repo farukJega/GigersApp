@@ -1,5 +1,7 @@
 "use client";
 
+import { MilestoneList } from "./MilestoneList";
+
 import { useState } from "react";
 import Link from "next/link";
 import { useParams } from "next/navigation";
@@ -250,19 +252,7 @@ export function GigDetails() {
 
       <section>
         <h2 className="mb-2 font-bold">{t("g_milestones")}</h2>
-        <div className="space-y-2">
-          {ms.map((m, i) => (
-            <div key={i} className="flex items-center justify-between rounded-xl border border-line bg-card p-3 text-sm">
-              <span className="min-w-0 truncate">{msTitles?.[i] ?? `#${i + 1}`}</span>
-              <span className="ms-3 shrink-0 text-end">
-                <span className="block font-bold">{formatUnits(m.amount, USDC_DECIMALS)} USDC</span>
-                <span className="block text-xs text-muted">
-                  {status === 3 && m.status === 0 ? t("ms3") : t(`ms${m.status}`)}
-                </span>
-              </span>
-            </div>
-          ))}
-        </div>
+        <MilestoneList id={id} client={g[0]} worker={g[1]} deadline={g[3]} gigStatus={status} ms={ms} titles={msTitles} onChanged={() => { void refetch(); }} />
       </section>
 
       {hasWorker && (
