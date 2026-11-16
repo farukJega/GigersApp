@@ -52,3 +52,27 @@ body {
     var(--bg);
   background-attachment: fixed;
 }
+
+/* Inverse surfaces: dark blocks in light mode, light blocks in dark mode */
+.inv {
+  --bg: #0a1220;
+  --card: #111b30;
+  --card-2: #17233d;
+  --fg: #fff7ed;
+  --muted: #94a0b8;
+  --line: #243250;
+  --brand: #ff8a2b;
+  --brand-ink: #0f1b33;
+  background-color: var(--card);
+  color: var(--fg);
+}
+.dark .inv {
+  --bg: #fff7ed;
+  --card: #ffffff;
+  --card-2: #fdeedd;
+  --fg: #0f1b33;
+  --muted: #5b6478;
+  --line: #ecdfcf;
+  --brand: #ea580c;
+  --brand-ink: #ffffff;
+}
