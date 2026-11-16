@@ -37,7 +37,7 @@ export async function GET(req: Request) {
     .split(",")
     .map((h) => h.trim().toLowerCase())
     .filter((h) => /^0x[0-9a-f]{64}$/.test(h))
-    .slice(0, 50);
+    .slice(0, 100);
   if (hashes.length === 0) return NextResponse.json({});
 
   try {

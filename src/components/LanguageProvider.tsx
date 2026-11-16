@@ -4,6 +4,7 @@ import { createContext, useCallback, useContext, useEffect, useMemo, useState } 
 import { dicts, languages, type Lang } from "@/lib/i18n";
 import { gigDict } from "@/lib/i18n/gig";
 import { workDict } from "@/lib/i18n/work";
+import { moreDict } from "@/lib/i18n/more";
 
 type Ctx = {
   lang: Lang;
@@ -45,6 +46,7 @@ export function LanguageProvider({ children }: { children: React.ReactNode }) {
       dicts[lang][key] ??
       gigDict[lang]?.[key] ??
       workDict[lang]?.[key] ??
+      moreDict[lang]?.[key] ??
       dicts.en[key] ??
       gigDict.en[key] ??
       workDict.en[key] ??

@@ -21,6 +21,9 @@ import { categories } from "@/lib/categories";
 import type { GigMetadata } from "@/lib/metadata";
 import { useLang } from "./LanguageProvider";
 import { ConnectButton } from "./ConnectButton";
+import { CancelGig } from "./CancelGig";
+import { RateBox } from "./RateBox";
+import { RelatedGigs } from "./RelatedGigs";
 
 const ZERO = "0x0000000000000000000000000000000000000000";
 const statusKeys = ["open", "inprog", "done", "cancelled"];
@@ -215,7 +218,7 @@ export function GigDetails() {
         </div>
         <div>
           <p className="text-xs text-muted">{t("g_client")}</p>
-          <p className="font-mono text-sm font-semibold">{short(g[0])}</p>
+          <Link href={`/profile/${g[0]}`} className="font-mono text-sm font-semibold text-brand">{short(g[0])}</Link>
         </div>
       </div>
 
@@ -258,7 +261,7 @@ export function GigDetails() {
       {hasWorker && (
         <section className="rounded-2xl border border-line bg-card p-4">
           <p className="text-xs text-muted">{t("g_worker")}</p>
-          <p className="font-mono text-sm font-semibold">{short(g[1])}</p>
+          <Link href={`/profile/${g[1]}`} className="font-mono text-sm font-semibold text-brand">{short(g[1])}</Link>
         </section>
       )}
 
@@ -270,7 +273,7 @@ export function GigDetails() {
           <div className="space-y-2">
             {applicants.map((a) => (
               <div key={a} className="flex items-center justify-between rounded-xl border border-line bg-card p-3">
-                <span className="font-mono text-sm">{short(a)}</span>
+                <Link href={`/profile/${a}`} className="font-mono text-sm text-brand">{short(a)}</Link>
                 {isClient && isOpen && (
                   <button
                     className="rounded-lg bg-brand px-3 py-1.5 text-xs font-bold text-brand-ink disabled:opacity-50"
@@ -287,7 +290,10 @@ export function GigDetails() {
       </section>
 
       {applyBlock}
+      {isClient && isOpen && <CancelGig id={id} onDone={() => { void refetch(); }} />}
+      {status === 2 && !!address && (isClient || g[1].toLowerCase() === address.toLowerCase()) && <RateBox gigId={idStr} />}
       {error && <p className="rounded-xl bg-red-500/10 p-3 text-sm text-red-400">{error}</p>}
+      {meta && <RelatedGigs category={meta.category} excludeId={Number(idStr)} />}
     </div>
   );
 }
