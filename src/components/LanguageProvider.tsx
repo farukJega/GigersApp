@@ -2,6 +2,7 @@
 
 import { createContext, useCallback, useContext, useEffect, useMemo, useState } from "react";
 import { dicts, languages, type Lang } from "@/lib/i18n";
+import { gigDict } from "@/lib/i18n/gig";
 
 type Ctx = {
   lang: Lang;
@@ -39,7 +40,13 @@ export function LanguageProvider({ children }: { children: React.ReactNode }) {
   }, []);
 
   const t = useCallback(
-    (key: string, fallback?: string) => dicts[lang][key] ?? dicts.en[key] ?? fallback ?? key,
+    (key: string, fallback?: string) =>
+      dicts[lang][key] ??
+      gigDict[lang]?.[key] ??
+      dicts.en[key] ??
+      gigDict.en[key] ??
+      fallback ??
+      key,
     [lang]
   );
 

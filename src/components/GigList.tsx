@@ -1,4 +1,5 @@
 "use client";
+import { useRouter } from "next/navigation";
 
 import { useQuery } from "@tanstack/react-query";
 import { useReadContract, useReadContracts } from "wagmi";
@@ -23,6 +24,7 @@ const short = (a: string) => `${a.slice(0, 6)}...${a.slice(-4)}`;
 
 export function GigList({ limit = 10 }: { limit?: number }) {
   const { t } = useLang();
+  const router = useRouter();
   const { data: count, isLoading: loadingCount } = useReadContract({
     address: ESCROW_ADDRESS,
     abi: escrowAbi,
@@ -84,7 +86,7 @@ export function GigList({ limit = 10 }: { limit?: number }) {
         const ci = m ? categories.findIndex((c) => c.slug === m.category) : -1;
         const catName = ci >= 0 ? t(`c${ci}`, categories[ci].name) : undefined;
         return (
-          <div key={id} className="rounded-2xl border border-line bg-card p-4">
+          <div key={id} role="link" tabIndex={0} onClick={() => router.push(`/gig/${id}`)} className="cursor-pointer rounded-2xl border border-line bg-card p-4">
             <div className="flex items-start justify-between gap-3">
               <div className="min-w-0">
                 <p className="truncate font-bold">{m?.title ?? `Gig #${id}`}</p>
