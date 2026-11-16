@@ -47,7 +47,7 @@ export function ConnectButton() {
 
   return (
     <button
-      className={`${base} border border-slate-600 bg-slate-800 text-slate-100`}
+      className={`${base} border border-line bg-card text-fg`}
       onClick={() => disconnect()}
       title="Click to disconnect"
     >
