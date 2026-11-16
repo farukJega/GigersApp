@@ -278,7 +278,7 @@ export function CreateGigForm() {
           <label className="flex items-start gap-3 rounded-xl border border-line bg-card p-4">
             <input
               type="checkbox"
-              className="mt-1 h-4 w-4 accent-[#c6f432]"
+              className="mt-1 h-4 w-4 accent-[#ea580c]"
               checked={quick}
               onChange={(e) => {
                 setQuick(e.target.checked);
