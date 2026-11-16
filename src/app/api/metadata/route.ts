@@ -3,7 +3,6 @@ import { keccak256, toHex } from "viem";
 import { db } from "@/lib/db";
 import { normalizeMetadata } from "@/lib/metadata";
 
-export const runtime = "nodejs";
 
 export async function POST(req: Request) {
   let body: unknown;
