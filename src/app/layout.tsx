@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import "./globals.css";
 import { Providers } from "./providers";
+import { BottomNav } from "@/components/BottomNav";
 
 export const metadata: Metadata = {
   title: "GigersApp",
@@ -19,8 +20,11 @@ export default function RootLayout({
       <head>
         <script dangerouslySetInnerHTML={{ __html: themeScript }} />
       </head>
-      <body className="min-h-screen antialiased">
-        <Providers>{children}</Providers>
+      <body className="min-h-screen pb-24 antialiased">
+        <Providers>
+          {children}
+          <BottomNav />
+        </Providers>
       </body>
     </html>
   );

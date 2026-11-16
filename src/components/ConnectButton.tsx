@@ -18,7 +18,7 @@ export function ConnectButton() {
     return (
       <div className="flex flex-col items-end gap-1">
         <button
-          className={`${base} bg-gradient-to-r from-blue-500 to-violet-600 text-white`}
+          className={`${base} bg-brand text-brand-ink`}
           disabled={isPending}
           onClick={() => connect({ connector: connectors[0] })}
         >
