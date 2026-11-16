@@ -1,6 +1,6 @@
 export const moreDict: Record<string, Record<string, string>> = {
   ha: {
-    nav_dash: "Allo", nav_profile: "Bayani",
+    connect_short: "Haɗa", nav_dash: "Allo", nav_profile: "Bayani",
     x_search: "Nemi da suna ko kalma", x_filters: "Tace", x_all: "Duka", x_cat: "Rukuni", x_sub: "Ƙaramin rukuni",
     x_min: "Mafi ƙaranci USDC", x_max: "Mafi yawa USDC", x_until: "Wa'adi kafin", x_quick: "Quick Gigs kawai",
     x_open: "Ayyuka masu buɗe kawai", x_sort: "Jera ta", x_new: "Mafi sabo", x_high: "Mafi girman kuɗi",
