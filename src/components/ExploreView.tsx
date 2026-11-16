@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Search, SlidersHorizontal } from "lucide-react";
 import { formatUnits } from "viem";
 import { categories } from "@/lib/categories";
@@ -43,7 +43,8 @@ export function ExploreView() {
   const key = [q, cat, sub, min, max, until, quick, active, sort].join("|");
   const visible = page.key === key ? page.count : PAGE;
 
-  const now = Date.now() / 1000;
+  const [now, setNow] = useState(0);
+  useEffect(() => { setNow(Date.now() / 1000); }, []);
   const needle = q.trim().toLowerCase();
   const minN = parseFloat(min);
   const maxN = parseFloat(max);
