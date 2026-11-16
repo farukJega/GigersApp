@@ -1,3 +1,4 @@
+import { Suspense } from "react";
 import type { Metadata } from "next";
 import "./globals.css";
 import { Providers } from "./providers";
@@ -23,7 +24,9 @@ export default function RootLayout({
       <body className="min-h-screen pb-24 antialiased">
         <Providers>
           {children}
-          <BottomNav />
+          <Suspense fallback={null}>
+            <BottomNav />
+          </Suspense>
         </Providers>
       </body>
     </html>
