@@ -4,7 +4,8 @@ export type WorkSubmission = {
   index: number;
   note: string;
   links: string[];
-  files?: string[];
+  finalLinks: string[];
+  files: string[];
 };
 
 export function normalizeWork(
@@ -18,30 +19,44 @@ export function normalizeWork(
   if (!/^\d{1,9}$/.test(gigId)) return { ok: false, error: "Invalid gig." };
   if (!Number.isInteger(index) || index < 0 || index > 9)
     return { ok: false, error: "Invalid milestone." };
-  if (note.length > 2000)
-    return { ok: false, error: "Note must be 2000 characters or less." };
+  if (note.length > 2000) return { ok: false, error: "Note must be 2000 characters or less." };
 
-  const links = (Array.isArray(input.links) ? input.links : []).map(str).filter(Boolean);
-  if (links.length > 5) return { ok: false, error: "You can add up to 5 links." };
-  const bad = links.find((l) => {
-    if (l.length > 300) return true;
-    try {
-      const u = new URL(l);
-      return u.protocol !== "https:" && u.protocol !== "http:";
-    } catch {
-      return true;
-    }
-  });
-  if (bad) return { ok: false, error: "Each link must be a valid http(s) URL." };
+  const urls = (x: unknown, max: number) => {
+    const list = (Array.isArray(x) ? x : []).map(str).filter(Boolean);
+    if (list.length > max) return { error: `You can add up to ${max} links.` };
+    const bad = list.find((l) => {
+      if (l.length > 300) return true;
+      try {
+        const u = new URL(l);
+        return u.protocol !== "https:" && u.protocol !== "http:";
+      } catch {
+        return true;
+      }
+    });
+    if (bad) return { error: "Each link must be a valid http(s) URL." };
+    return { list };
+  };
 
-  const files = (Array.isArray(input.files) ? input.files : [])
-    .map(str)
-    .filter((f) => /^0x[0-9a-fA-F]{64}$/.test(f));
+  const a = urls(input.links, 5);
+  if ("error" in a) return { ok: false, error: a.error as string };
+  const b = urls(input.finalLinks, 3);
+  if ("error" in b) return { ok: false, error: b.error as string };
+
+  const files = Array.from(
+    new Set(
+      (Array.isArray(input.files) ? input.files : [])
+        .map(str)
+        .filter((f) => /^0x[0-9a-fA-F]{64}$/.test(f))
+        .map((f) => f.toLowerCase())
+    )
+  );
   if (files.length > 5) return { ok: false, error: "You can attach up to 5 images." };
 
-  if (note.length < 1 && links.length < 1 && files.length < 1)
+  const links = (a.list ?? []) as string[];
+  const finalLinks = (b.list ?? []) as string[];
+  if (!note && links.length + finalLinks.length + files.length === 0)
     return { ok: false, error: "Add a note, a link or an image to your work." };
 
-  const data: WorkSubmission = { v: 1, gigId, index, note, links, files };
+  const data: WorkSubmission = { v: 1, gigId, index, note, links, finalLinks, files };
   return { ok: true, data, json: JSON.stringify(data) };
 }

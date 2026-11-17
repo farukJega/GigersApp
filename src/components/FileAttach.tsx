@@ -3,17 +3,13 @@
 import { useRef, useState } from "react";
 import { ImagePlus, X } from "lucide-react";
 import { useLang } from "./LanguageProvider";
+import { useSession } from "./SessionProvider";
+import { SecureImage } from "./SecureImage";
 
 const MAX_FILES = 5;
 
-async function toJpegBase64(file: File): Promise<string> {
-  let bmp: ImageBitmap;
-  try {
-    bmp = await createImageBitmap(file);
-  } catch {
-    throw new Error("This image format is not supported. Use JPG or PNG.");
-  }
-  const scale = Math.min(1, 1600 / Math.max(bmp.width, bmp.height));
+function encode(bmp: ImageBitmap, max: number, quality: number, mark: boolean) {
+  const scale = Math.min(1, max / Math.max(bmp.width, bmp.height));
   const w = Math.max(1, Math.round(bmp.width * scale));
   const h = Math.max(1, Math.round(bmp.height * scale));
   const canvas = document.createElement("canvas");
@@ -24,18 +20,40 @@ async function toJpegBase64(file: File): Promise<string> {
   ctx.fillStyle = "#ffffff";
   ctx.fillRect(0, 0, w, h);
   ctx.drawImage(bmp, 0, 0, w, h);
-  bmp.close();
-  return canvas.toDataURL("image/jpeg", 0.85).split(",")[1];
+  if (mark) {
+    ctx.save();
+    ctx.translate(w / 2, h / 2);
+    ctx.rotate(-Math.PI / 6);
+    const size = Math.max(14, Math.round(Math.max(w, h) / 14));
+    ctx.font = `bold ${size}px sans-serif`;
+    ctx.textAlign = "center";
+    ctx.textBaseline = "middle";
+    ctx.lineWidth = Math.max(1, size / 12);
+    ctx.strokeStyle = "rgba(0,0,0,0.45)";
+    ctx.fillStyle = "rgba(255,255,255,0.55)";
+    const text = "GIGERSAPP PREVIEW";
+    const span = Math.max(w, h) * 1.4;
+    for (let y = -span; y <= span; y += size * 2.6)
+      for (let x = -span; x <= span; x += size * 11) {
+        ctx.strokeText(text, x, y);
+        ctx.fillText(text, x, y);
+      }
+    ctx.restore();
+  }
+  return canvas.toDataURL("image/jpeg", quality).split(",")[1];
 }
 
 export function FileAttach({
   files,
   onChange,
+  gigId,
 }: {
   files: string[];
   onChange: (f: string[]) => void;
+  gigId: string;
 }) {
   const { t } = useLang();
+  const { token, signIn } = useSession();
   const input = useRef<HTMLInputElement>(null);
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState("");
@@ -45,15 +63,25 @@ export function FileAttach({
     setErr("");
     setBusy(true);
     try {
+      const tk = token ?? (await signIn());
+      if (!tk) throw new Error("Sign in with your wallet to upload.");
       let next = [...files];
       for (const f of Array.from(list)) {
         if (next.length >= MAX_FILES) break;
         if (!f.type.startsWith("image/")) throw new Error("Only images can be uploaded.");
-        const data = await toJpegBase64(f);
+        let bmp: ImageBitmap;
+        try {
+          bmp = await createImageBitmap(f);
+        } catch {
+          throw new Error("This image format is not supported. Use JPG or PNG.");
+        }
+        const full = encode(bmp, 1600, 0.85, false);
+        const preview = encode(bmp, 480, 0.5, true);
+        bmp.close();
         const res = await fetch("/api/file", {
           method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ data }),
+          headers: { "Content-Type": "application/json", Authorization: `Bearer ${tk}` },
+          body: JSON.stringify({ gigId, full, preview }),
         });
         const j = await res.json();
         if (!res.ok) throw new Error(j.error || "Upload failed.");
@@ -70,14 +98,7 @@ export function FileAttach({
 
   return (
     <div className="space-y-2">
-      <input
-        ref={input}
-        type="file"
-        accept="image/*"
-        multiple
-        className="hidden"
-        onChange={(e) => pick(e.target.files)}
-      />
+      <input ref={input} type="file" accept="image/*" multiple className="hidden" onChange={(e) => pick(e.target.files)} />
       <button
         type="button"
         disabled={busy || files.length >= MAX_FILES}
@@ -91,8 +112,7 @@ export function FileAttach({
         <div className="grid grid-cols-3 gap-2">
           {files.map((id) => (
             <div key={id} className="relative">
-              {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img src={`/api/file?id=${id}`} alt="" className="h-20 w-full rounded-lg object-cover" />
+              <SecureImage id={id} thumb className="h-20 w-full rounded-lg object-cover" />
               <button
                 type="button"
                 aria-label="Remove"
@@ -106,21 +126,6 @@ export function FileAttach({
         </div>
       )}
       {err && <p className="text-xs text-red-400">{err}</p>}
-    </div>
-  );
-}
-
-export function WorkFiles({ ids }: { ids: string[] }) {
-  const valid = ids.filter((i) => /^0x[0-9a-fA-F]{64}$/.test(i));
-  if (valid.length === 0) return null;
-  return (
-    <div className="mt-2 grid grid-cols-2 gap-2">
-      {valid.map((id) => (
-        <a key={id} href={`/api/file?id=${id}`} target="_blank" rel="noopener noreferrer">
-          {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img src={`/api/file?id=${id}`} alt="" className="w-full rounded-lg object-cover" />
-        </a>
-      ))}
     </div>
   );
 }

@@ -3,7 +3,6 @@ import { keccak256, toHex } from "viem";
 import { db } from "@/lib/db";
 import { normalizeMetadata } from "@/lib/metadata";
 
-
 export async function POST(req: Request) {
   let body: unknown;
   try {
@@ -23,14 +22,12 @@ export async function POST(req: Request) {
       on conflict (hash) do update set payload = excluded.payload
     `;
   } catch {
-    return NextResponse.json(
-      { error: "Could not save gig details. Try again." },
-      { status: 500 }
-    );
+    return NextResponse.json({ error: "Could not save gig details. Try again." }, { status: 500 });
   }
   return NextResponse.json({ hash });
 }
 
+// Public gig listings only. Submitted work is never returned from here.
 export async function GET(req: Request) {
   const raw = new URL(req.url).searchParams.get("hashes") ?? "";
   const hashes = raw
@@ -47,8 +44,10 @@ export async function GET(req: Request) {
     `) as { hash: string; payload: string }[];
     const out: Record<string, unknown> = {};
     for (const row of rows) {
-      if (keccak256(toHex(row.payload)) === row.hash) {
-        out[row.hash] = JSON.parse(row.payload);
+      if (keccak256(toHex(row.payload)) !== row.hash) continue;
+      const p = JSON.parse(row.payload);
+      if (typeof p.title === "string" && typeof p.category === "string" && p.gigId === undefined) {
+        out[row.hash] = p;
       }
     }
     return NextResponse.json(out);

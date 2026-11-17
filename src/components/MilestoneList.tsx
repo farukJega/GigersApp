@@ -6,9 +6,10 @@ import { useAccount, usePublicClient, useReadContract, useWriteContract } from "
 import { formatUnits } from "viem";
 import { ESCROW_ADDRESS, USDC_DECIMALS, escrowAbi } from "@/lib/contract";
 import { arcTestnet } from "@/lib/arc";
-import type { WorkSubmission } from "@/lib/work";
 import { useLang } from "./LanguageProvider";
-import { FileAttach, WorkFiles } from "./FileAttach";
+import { useSession } from "./SessionProvider";
+import { FileAttach } from "./FileAttach";
+import { WorkView, type WorkOut } from "./WorkView";
 
 type Addr = `0x${string}`;
 type MilestoneT = { amount: bigint; workHash: string; submittedAt: bigint; status: number };
@@ -48,11 +49,13 @@ export function MilestoneList({
   const { address, chainId } = useAccount();
   const publicClient = usePublicClient({ chainId: arcTestnet.id });
   const { writeContractAsync } = useWriteContract();
+  const { token, signIn, busy: signing, error: signErr } = useSession();
   const [busy, setBusy] = useState("");
   const [error, setError] = useState("");
   const [open, setOpen] = useState<number | null>(null);
   const [note, setNote] = useState("");
   const [links, setLinks] = useState("");
+  const [finals, setFinals] = useState("");
   const [files, setFiles] = useState<string[]>([]);
 
   const { data: arbiter } = useReadContract({
@@ -63,12 +66,16 @@ export function MilestoneList({
   });
 
   const hashes = ms.map((m) => m.workHash).filter((h) => h && h !== ZERO_HASH);
+  const statusKey = ms.map((m) => m.status).join("");
   const { data: works } = useQuery({
-    queryKey: ["work", hashes.join(",")],
-    enabled: hashes.length > 0,
+    queryKey: ["work", hashes.join(","), statusKey, token],
+    enabled: hashes.length > 0 && !!token,
     queryFn: async () => {
-      const res = await fetch(`/api/work?hashes=${hashes.join(",")}`);
-      return (await res.json()) as Record<string, WorkSubmission>;
+      const res = await fetch(`/api/work?hashes=${hashes.join(",")}`, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      if (!res.ok) return {} as Record<string, WorkOut>;
+      return (await res.json()) as Record<string, WorkOut>;
     },
   });
 
@@ -76,6 +83,7 @@ export function MilestoneList({
   const isClient = !!me && me === client.toLowerCase();
   const isWorker = !!me && me === worker.toLowerCase();
   const isArbiter = !!me && typeof arbiter === "string" && me === arbiter.toLowerCase();
+  const isParty = isClient || isWorker || isArbiter;
 
   async function send(key: string, fn: () => Promise<Addr>) {
     setError("");
@@ -100,10 +108,19 @@ export function MilestoneList({
     try {
       if (!publicClient) throw new Error("Connect your wallet first.");
       if (chainId !== arcTestnet.id) throw new Error(t("switch_net"));
+      const tk = token ?? (await signIn());
+      if (!tk) throw new Error("Sign in with your wallet to submit work.");
       const res = await fetch("/api/work", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ gigId: String(id), index, note, links: links.split("\n"), files }),
+        headers: { "Content-Type": "application/json", Authorization: `Bearer ${tk}` },
+        body: JSON.stringify({
+          gigId: String(id),
+          index,
+          note,
+          links: links.split("\n"),
+          finalLinks: finals.split("\n"),
+          files,
+        }),
       });
       const j = await res.json();
       if (!res.ok) throw new Error(j.error || "Could not save your work.");
@@ -119,6 +136,7 @@ export function MilestoneList({
       setOpen(null);
       setNote("");
       setLinks("");
+      setFinals("");
       setFiles([]);
       onChanged();
     } catch (e) {
@@ -130,10 +148,8 @@ export function MilestoneList({
 
   const now = Math.floor(Date.now() / 1000);
   const active = gigStatus === 1;
-  const btn =
-    "rounded-lg px-3 py-2 text-xs font-bold transition active:scale-95 disabled:opacity-50";
-  const field =
-    "w-full rounded-xl border border-line bg-card2 px-3 py-2 text-sm outline-none focus:border-brand";
+  const btn = "rounded-lg px-3 py-2 text-xs font-bold transition active:scale-95 disabled:opacity-50";
+  const field = "w-full rounded-xl border border-line bg-card2 px-3 py-2 text-sm outline-none focus:border-brand";
 
   const call = (fn: "approveMilestone" | "refundMilestone" | "claimAfterTimeout" | "raiseDispute", i: number) =>
     writeContractAsync({
@@ -144,15 +160,25 @@ export function MilestoneList({
       chainId: arcTestnet.id,
     });
 
+  const resolve = (i: number, payWorker: boolean) =>
+    writeContractAsync({
+      address: ESCROW_ADDRESS,
+      abi: escrowAbi,
+      functionName: "resolveDispute",
+      args: [id, BigInt(i), payWorker],
+      chainId: arcTestnet.id,
+    });
+
   return (
     <div className="space-y-2">
       {ms.map((m, i) => {
         const w = works?.[m.workHash.toLowerCase()];
+        const hasWork = m.workHash !== ZERO_HASH;
         const claimAt = Number(m.submittedAt) + 7 * DAY;
         const daysLeft = Math.max(1, Math.ceil((claimAt - now) / DAY));
         const canClaim = now > claimAt;
         const canRefund = now > Number(deadline) + 3 * DAY;
-        const statusKey = gigStatus === 3 && m.status === 0 ? "ms3" : `ms${m.status}`;
+        const statusName = gigStatus === 3 && m.status === 0 ? "ms3" : `ms${m.status}`;
 
         return (
           <div key={i} className="space-y-3 rounded-xl border border-line bg-card p-3 text-sm">
@@ -160,39 +186,47 @@ export function MilestoneList({
               <span className="min-w-0 truncate">{titles?.[i] ?? `#${i + 1}`}</span>
               <span className="ms-3 shrink-0 text-end">
                 <span className="block font-bold">{formatUnits(m.amount, USDC_DECIMALS)} USDC</span>
-                <span className="block text-xs text-muted">{t(statusKey)}</span>
+                <span className="block text-xs text-muted">{t(statusName)}</span>
               </span>
             </div>
 
-            {w && (
-              <div className="rounded-lg bg-card2 p-3">
-                <p className="mb-1 text-xs font-bold text-muted">{t("w_work")}</p>
-                {w.note && <p className="whitespace-pre-wrap text-sm">{w.note}</p>}
-                <WorkFiles ids={w.files ?? []} />
-                {(w.links ?? [])
-                  .filter((l) => /^https?:\/\//i.test(l))
-                  .map((l) => (
-                    <a
-                      key={l}
-                      href={l}
-                      target="_blank"
-                      rel="noopener noreferrer nofollow ugc"
-                      className="mt-1 block break-all text-sm font-semibold text-brand"
-                    >
-                      {l}
-                    </a>
-                  ))}
-              </div>
-            )}
+            {hasWork &&
+              (w ? (
+                <WorkView w={w} paid={m.status === 2} />
+              ) : !isParty ? (
+                <p className="text-xs text-muted">
+                  {t("w_private", "Submitted work is private to the client and the freelancer.")}
+                </p>
+              ) : !token ? (
+                <div className="space-y-1">
+                  <button
+                    className={`${btn} w-full border border-line bg-card2`}
+                    disabled={signing}
+                    onClick={() => signIn()}
+                  >
+                    {signing ? "..." : t("w_signin", "Sign in to view submitted work")}
+                  </button>
+                  {signErr && <p className="text-xs text-red-400">{signErr}</p>}
+                </div>
+              ) : null)}
 
             {isWorker && active && m.status === 0 &&
               (open === i ? (
                 <div className="space-y-2">
                   <p className="font-bold">{t("w_sub_title")}</p>
                   <textarea className={field} rows={3} maxLength={2000} value={note} onChange={(e) => setNote(e.target.value)} placeholder={t("w_note_ph")} />
-                  <textarea className={field} rows={2} value={links} onChange={(e) => setLinks(e.target.value)} placeholder={t("w_links_ph")} />
-                  <FileAttach files={files} onChange={setFiles} />
-                  <p className="text-xs text-muted">{t("w_public")}</p>
+                  <FileAttach files={files} onChange={setFiles} gigId={String(id)} />
+                  <div>
+                    <p className="mb-1 text-xs font-semibold text-muted">{t("w_review_links", "Review links")}</p>
+                    <textarea className={field} rows={2} value={links} onChange={(e) => setLinks(e.target.value)} placeholder={t("w_links_ph")} />
+                    <p className="mt-1 text-xs text-muted">{t("w_review_hint", "The client can open these right away. Do not put the final files here.")}</p>
+                  </div>
+                  <div>
+                    <p className="mb-1 text-xs font-semibold text-muted">{t("w_final_links", "Final delivery links")}</p>
+                    <textarea className={field} rows={2} value={finals} onChange={(e) => setFinals(e.target.value)} placeholder="https://drive.google.com/..." />
+                    <p className="mt-1 text-xs text-muted">{t("w_final_hint", "Shown to the client only after you are paid.")}</p>
+                  </div>
+                  <p className="text-xs text-muted">{t("w_priv_note", "Only the client, you and the arbiter can see this work. Images are shown to the client as watermarked previews until payment.")}</p>
                   <div className="grid grid-cols-2 gap-2">
                     <button className={`${btn} border border-line bg-card`} disabled={!!busy} onClick={() => setOpen(null)}>
                       {t("w_cancel")}
@@ -237,33 +271,17 @@ export function MilestoneList({
                     {busy === `dsp${i}` ? "..." : t("w_dispute")}
                   </button>
                 )}
-                {!isClient && !isWorker && <p className="text-xs text-muted">{t("w_wait_client")}</p>}
+                {!isParty && <p className="text-xs text-muted">{t("w_wait_client")}</p>}
               </div>
             )}
 
             {m.status === 4 &&
               (isArbiter ? (
                 <div className="grid grid-cols-2 gap-2">
-                  <button
-                    className={`${btn} bg-brand text-brand-ink`}
-                    disabled={!!busy}
-                    onClick={() =>
-                      send(`rp${i}`, () =>
-                        writeContractAsync({ address: ESCROW_ADDRESS, abi: escrowAbi, functionName: "resolveDispute", args: [id, BigInt(i), true], chainId: arcTestnet.id })
-                      )
-                    }
-                  >
+                  <button className={`${btn} bg-brand text-brand-ink`} disabled={!!busy} onClick={() => send(`rp${i}`, () => resolve(i, true))}>
                     {busy === `rp${i}` ? "..." : t("w_pay_worker")}
                   </button>
-                  <button
-                    className={`${btn} border border-line bg-card`}
-                    disabled={!!busy}
-                    onClick={() =>
-                      send(`rr${i}`, () =>
-                        writeContractAsync({ address: ESCROW_ADDRESS, abi: escrowAbi, functionName: "resolveDispute", args: [id, BigInt(i), false], chainId: arcTestnet.id })
-                      )
-                    }
-                  >
+                  <button className={`${btn} border border-line bg-card`} disabled={!!busy} onClick={() => send(`rr${i}`, () => resolve(i, false))}>
                     {busy === `rr${i}` ? "..." : t("w_refund_client")}
                   </button>
                 </div>
